@@ -1,0 +1,479 @@
+name: Build hanwckf's immortalwrt from source
+
+on:
+  workflow_dispatch:
+
+#  schedule:
+#    - cron: 0 8 */5 * *
+
+permissions:
+  contents: write
+
+jobs:
+  build-mt7981-ax3000:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/script/ubuntu2204-depends)
+        wget https://bootstrap.pypa.io/pip/3.6/get-pip.py
+        sudo python3 get-pip.py
+        sudo rm -rf get-pip.py
+        sudo pip install pyelftools
+        docker rmi `docker images -q`
+        docker image prune -a -f
+        sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* android* || true
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo mkdir -p /mnt/workdir
+        sudo chown $USER:$GROUPS /mnt/workdir
+
+        CREATE_TIME="$(curl "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | jq -r .created_at)"
+        BUILD_TIME_1="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y-%m-%d %H:%M:%S CST(+08:00)")"
+        echo "BUILD_TIME_1=$BUILD_TIME_1" >> $GITHUB_ENV
+        BUILD_TIME_2="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y%m%d-%H%M%S")"
+        echo "BUILD_TIME_2=$BUILD_TIME_2" >> $GITHUB_ENV
+
+    - name: Clone source code
+      working-directory: /mnt/workdir
+      run: |
+        df -hT $PWD
+        git clone https://github.com/hanwckf/immortalwrt-mt798x.git -b openwrt-21.02 --depth=1 immortalwrt
+        ln -sf /mnt/workdir/immortalwrt $GITHUB_WORKSPACE/immortalwrt
+
+    - name: Load custom configuration
+      run: |
+        cd immortalwrt
+        cp -f defconfig/mt7981-ax3000.config .config
+
+    - name: Update and install feeds
+      run: |
+        cd immortalwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Download package
+      run: |
+        cd immortalwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      run: |
+        cd immortalwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_bin_mt7981-ax3000_${{ env.BUILD_TIME_2 }}
+        path: immortalwrt/bin
+
+    - name: Organize files
+      run: |
+        cd immortalwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_firmware_mt7981-ax3000_${{ env.BUILD_TIME_2 }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: Generate release informations
+      run: |
+        RELEASE_TAG="Hanwckf-ImmortalWrt-21.02-mt7981-ax3000-${{ env.BUILD_TIME_2 }}"
+        echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+
+        cat <<EOF | sed -E 's/^  //' > Release.md
+          CI Hanwckf ImmortalWrt 21.02 mt7981-ax3000 ${{ env.BUILD_TIME_1 }}
+
+          Build time: \`${{ env.BUILD_TIME_1 }}\`
+          Build version: Hanwckf's ImmortalWrt 21.02
+          Build platform: \`mt7981-ax3000\`
+          Login: \`192.168.1.1\`
+          Username: \`root\`
+          Password: \`none\`
+        EOF
+
+        echo "RELEASE_NAME=$(head --line=1 Release.md)" >> $GITHUB_ENV
+        tail --line=+2 Release.md > Body.md
+    
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: ${{ env.RELEASE_NAME }}
+        tag_name: ${{ env.RELEASE_TAG }}
+        body_path: Body.md
+        files: ${{ env.FIRMWARE }}/*
+
+  build-mt7986-ax6000:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/script/ubuntu2204-depends)
+        wget https://bootstrap.pypa.io/pip/3.6/get-pip.py
+        sudo python3 get-pip.py
+        sudo rm -rf get-pip.py
+        sudo pip install pyelftools
+        docker rmi `docker images -q`
+        docker image prune -a -f
+        sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* android* || true
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo mkdir -p /mnt/workdir
+        sudo chown $USER:$GROUPS /mnt/workdir
+
+        CREATE_TIME="$(curl "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | jq -r .created_at)"
+        BUILD_TIME_1="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y-%m-%d %H:%M:%S CST(+08:00)")"
+        echo "BUILD_TIME_1=$BUILD_TIME_1" >> $GITHUB_ENV
+        BUILD_TIME_2="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y%m%d-%H%M%S")"
+        echo "BUILD_TIME_2=$BUILD_TIME_2" >> $GITHUB_ENV
+
+    - name: Clone source code
+      working-directory: /mnt/workdir
+      run: |
+        df -hT $PWD
+        git clone https://github.com/hanwckf/immortalwrt-mt798x.git -b openwrt-21.02 --depth=1 immortalwrt
+        ln -sf /mnt/workdir/immortalwrt $GITHUB_WORKSPACE/immortalwrt
+
+    - name: Load custom configuration
+      run: |
+        cd immortalwrt
+        cp -f defconfig/mt7986-ax6000.config .config
+
+    - name: Update and install feeds
+      run: |
+        cd immortalwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Download package
+      run: |
+        cd immortalwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      run: |
+        cd immortalwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_bin_mt7986-ax6000_${{ env.BUILD_TIME_2 }}
+        path: immortalwrt/bin
+
+    - name: Organize files
+      run: |
+        cd immortalwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_firmware_mt7986-ax6000_${{ env.BUILD_TIME_2 }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: Generate release informations
+      run: |
+        RELEASE_TAG="Hanwckf-ImmortalWrt-21.02-mt7986-ax6000-${{ env.BUILD_TIME_2 }}"
+        echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+
+        cat <<EOF | sed -E 's/^  //' > Release.md
+          CI Hanwckf ImmortalWrt 21.02 mt7986-ax6000 ${{ env.BUILD_TIME_1 }}
+
+          Build time: \`${{ env.BUILD_TIME_1 }}\`
+          Build version: Hanwckf's ImmortalWrt 21.02
+          Build platform: \`mt7986-ax6000\`
+          Login: \`192.168.1.1\`
+          Username: \`root\`
+          Password: \`none\`
+        EOF
+
+        echo "RELEASE_NAME=$(head --line=1 Release.md)" >> $GITHUB_ENV
+        tail --line=+2 Release.md > Body.md
+    
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: ${{ env.RELEASE_NAME }}
+        tag_name: ${{ env.RELEASE_TAG }}
+        body_path: Body.md
+        files: ${{ env.FIRMWARE }}/*
+
+  build-mt7986-ax6000-256m:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/script/ubuntu2204-depends)
+        wget https://bootstrap.pypa.io/pip/3.6/get-pip.py
+        sudo python3 get-pip.py
+        sudo rm -rf get-pip.py
+        sudo pip install pyelftools
+        docker rmi `docker images -q`
+        docker image prune -a -f
+        sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* android* || true
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo mkdir -p /mnt/workdir
+        sudo chown $USER:$GROUPS /mnt/workdir
+
+        CREATE_TIME="$(curl "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | jq -r .created_at)"
+        BUILD_TIME_1="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y-%m-%d %H:%M:%S CST(+08:00)")"
+        echo "BUILD_TIME_1=$BUILD_TIME_1" >> $GITHUB_ENV
+        BUILD_TIME_2="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y%m%d-%H%M%S")"
+        echo "BUILD_TIME_2=$BUILD_TIME_2" >> $GITHUB_ENV
+
+    - name: Clone source code
+      working-directory: /mnt/workdir
+      run: |
+        df -hT $PWD
+        git clone https://github.com/hanwckf/immortalwrt-mt798x.git -b openwrt-21.02 --depth=1 immortalwrt
+        ln -sf /mnt/workdir/immortalwrt $GITHUB_WORKSPACE/immortalwrt
+
+    - name: Load custom configuration
+      run: |
+        cd immortalwrt
+        cp -f defconfig/mt7986-ax6000-256m.config .config
+
+    - name: Update and install feeds
+      run: |
+        cd immortalwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Download package
+      run: |
+        cd immortalwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      run: |
+        cd immortalwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_bin_mt7986-ax6000-256m_${{ env.BUILD_TIME_2 }}
+        path: immortalwrt/bin
+
+    - name: Organize files
+      run: |
+        cd immortalwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_firmware_mt7986-ax6000-256m_${{ env.BUILD_TIME_2 }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: Generate release informations
+      run: |
+        RELEASE_TAG="Hanwckf-ImmortalWrt-21.02-mt7986-ax6000-256m-${{ env.BUILD_TIME_2 }}"
+        echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+
+        cat <<EOF | sed -E 's/^  //' > Release.md
+          CI Hanwckf ImmortalWrt 21.02 mt7986-ax6000-256m ${{ env.BUILD_TIME_1 }}
+
+          Build time: \`${{ env.BUILD_TIME_1 }}\`
+          Build version: Hanwckf's ImmortalWrt 21.02
+          Build platform: \`mt7986-ax6000-256m\`
+          Login: \`192.168.1.1\`
+          Username: \`root\`
+          Password: \`none\`
+        EOF
+
+        echo "RELEASE_NAME=$(head --line=1 Release.md)" >> $GITHUB_ENV
+        tail --line=+2 Release.md > Body.md
+    
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: ${{ env.RELEASE_NAME }}
+        tag_name: ${{ env.RELEASE_TAG }}
+        body_path: Body.md
+        files: ${{ env.FIRMWARE }}/*
+
+  build-mt7986-ax4200:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /etc/mysql /etc/php /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(cat $GITHUB_WORKSPACE/script/ubuntu2204-depends)
+        wget https://bootstrap.pypa.io/pip/3.6/get-pip.py
+        sudo python3 get-pip.py
+        sudo rm -rf get-pip.py
+        sudo pip install pyelftools
+        docker rmi `docker images -q`
+        docker image prune -a -f
+        sudo -E apt-get -y purge azure-cli ghc* zulu* hhvm llvm* firefox google* dotnet* powershell openjdk* adoptopenjdk* mysql* php* mongodb* dotnet* moby* snapd* android* || true
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo mkdir -p /mnt/workdir
+        sudo chown $USER:$GROUPS /mnt/workdir
+
+        CREATE_TIME="$(curl "https://api.github.com/repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" | jq -r .created_at)"
+        BUILD_TIME_1="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y-%m-%d %H:%M:%S CST(+08:00)")"
+        echo "BUILD_TIME_1=$BUILD_TIME_1" >> $GITHUB_ENV
+        BUILD_TIME_2="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y%m%d-%H%M%S")"
+        echo "BUILD_TIME_2=$BUILD_TIME_2" >> $GITHUB_ENV
+
+    - name: Clone source code
+      working-directory: /mnt/workdir
+      run: |
+        df -hT $PWD
+        git clone https://github.com/hanwckf/immortalwrt-mt798x.git -b openwrt-21.02 --depth=1 immortalwrt
+        ln -sf /mnt/workdir/immortalwrt $GITHUB_WORKSPACE/immortalwrt
+
+    - name: Load custom configuration
+      run: |
+        cd immortalwrt
+        cp -f defconfig/mt7986-ax4200.config .config
+
+    - name: Update and install feeds
+      run: |
+        cd immortalwrt
+        ./scripts/feeds update -a
+        ./scripts/feeds install -a
+
+    - name: Download package
+      run: |
+        cd immortalwrt
+        make defconfig
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Compile the firmware
+      run: |
+        cd immortalwrt
+        echo -e "$(nproc) thread compile"
+        make -j$(nproc) || make -j1 || make -j1 V=s
+        echo "status=success" >> ${GITHUB_OUTPUT}
+
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Upload bin directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_bin_mt7986-ax4200_${{ env.BUILD_TIME_2 }}
+        path: immortalwrt/bin
+
+    - name: Organize files
+      run: |
+        cd immortalwrt/bin/targets/*/*
+        rm -rf packages
+        echo "FIRMWARE=$PWD" >> $GITHUB_ENV
+        echo "status=success" >> $GITHUB_OUTPUT
+
+    - name: Upload firmware directory
+      uses: actions/upload-artifact@main
+      with:
+        name: hanwckf_immortalwrt_firmware_mt7986-ax4200_${{ env.BUILD_TIME_2 }}
+        path: ${{ env.FIRMWARE }}
+
+    - name: Generate release informations
+      run: |
+        RELEASE_TAG="Hanwckf-ImmortalWrt-21.02-mt7986-ax4200-${{ env.BUILD_TIME_2 }}"
+        echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
+
+        cat <<EOF | sed -E 's/^  //' > Release.md
+          CI Hanwckf ImmortalWrt 21.02 mt7986-ax4200 ${{ env.BUILD_TIME_1 }}
+
+          Build time: \`${{ env.BUILD_TIME_1 }}\`
+          Build version: Hanwckf's ImmortalWrt 21.02
+          Build platform: \`mt7986-ax4200\`
+          Login: \`192.168.1.1\`
+          Username: \`root\`
+          Password: \`none\`
+        EOF
+
+        echo "RELEASE_NAME=$(head --line=1 Release.md)" >> $GITHUB_ENV
+        tail --line=+2 Release.md > Body.md
+    
+    - name: Upload firmware to release
+      uses: softprops/action-gh-release@master
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        name: ${{ env.RELEASE_NAME }}
+        tag_name: ${{ env.RELEASE_TAG }}
+        body_path: Body.md
+        files: ${{ env.FIRMWARE }}/*
