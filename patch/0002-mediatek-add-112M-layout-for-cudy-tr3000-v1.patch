@@ -1,0 +1,117 @@
+From 5a3f929f28ee489256d258c08f6916ea47957a6e Mon Sep 17 00:00:00 2001
+From: zhz8888 <67500896+zhz8888@users.noreply.github.com>
+Date: Sun, 2 Mar 2025 19:32:11 +0800
+Subject: [PATCH] mediatek: add 112M layout for cudy tr3000 v1
+
+If you want to use this firmware, you can check this link to get more information:
+https://www.right.com.cn/forum/thread-8411618-1-1.html
+
+Signed-off-by: zhz8888 <67500896+zhz8888@users.noreply.github.com>
+---
+ .../lib/preinit/05_set_preinit_iface          |  1 +
+ .../dts/mt7981b-cudy-tr3000-v1-112m.dts       | 26 +++++++++++++++++++
+ .../filogic/base-files/etc/board.d/02_network |  1 +
+ .../etc/hotplug.d/ieee80211/11_fix_wifi_mac   |  1 +
+ target/linux/mediatek/image/filogic.mk        | 17 ++++++++++++
+ 5 files changed, 46 insertions(+)
+ create mode 100644 target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-112m.dts
+
+diff --git a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
+index 0d75751069..29dd9d9f2c 100644
+--- a/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
++++ b/target/linux/mediatek/base-files/lib/preinit/05_set_preinit_iface
+@@ -2,6 +2,7 @@ set_preinit_iface() {
+ 	case $(board_name) in
+ 	cudy,m3000-v1|\
+ 	cudy,tr3000-v1|\
++	cudy,tr3000-v1-112m|\
+ 	cudy,tr3000-v1-ubootmod|\
+ 	glinet,gl-mt3000|\
+ 	openembed,som7981)
+diff --git a/target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-112m.dts b/target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-112m.dts
+new file mode 100644
+index 0000000000..9d9ad7d6f5
+--- /dev/null
++++ b/target/linux/mediatek/dts/mt7981b-cudy-tr3000-v1-112m.dts
+@@ -0,0 +1,26 @@
++// SPDX-License-Identifier: (GPL-2.0 OR MIT)
++
++/dts-v1/;
++#include "mt7981b-cudy-tr3000-v1.dtsi"
++
++/ {
++	model = "Cudy TR3000 v1 (112M ubi)";
++	compatible = "cudy,tr3000-v1-112m", "mediatek,mt7981";
++};
++
++&spi_nand {
++	spi-cal-enable;
++	spi-cal-mode = "read-data";
++	spi-cal-datalen = <7>;
++	spi-cal-data = /bits/ 8 <0x53 0x50 0x49 0x4E 0x41 0x4E 0x44>;
++	spi-cal-addrlen = <5>;
++	spi-cal-addr = /bits/ 32 <0x0 0x0 0x0 0x0 0x0>;
++
++	mediatek,nmbm;
++	mediatek,bmt-max-ratio = <1>;
++	mediatek,bmt-max-reserved-blocks = <64>;
++};
++
++&ubi {
++	reg = <0x5c0000 0x4000000>;
++};
+diff --git a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
+index 1b8d9cf321..d2422cf27e 100644
+--- a/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
++++ b/target/linux/mediatek/filogic/base-files/etc/board.d/02_network
+@@ -95,6 +95,7 @@ mediatek_setup_interfaces()
+ 		;;
+ 	cudy,m3000-v1|\
+ 	cudy,tr3000-v1|\
++	cudy,tr3000-v1-112m|\
+ 	cudy,tr3000-v1-ubootmod|\
+ 	glinet,gl-mt2500|\
+ 	glinet,gl-mt3000|\
+diff --git a/target/linux/mediatek/filogic/base-files/etc/hotplug.d/ieee80211/11_fix_wifi_mac b/target/linux/mediatek/filogic/base-files/etc/hotplug.d/ieee80211/11_fix_wifi_mac
+index b3a5481213..60be69d5aa 100644
+--- a/target/linux/mediatek/filogic/base-files/etc/hotplug.d/ieee80211/11_fix_wifi_mac
++++ b/target/linux/mediatek/filogic/base-files/etc/hotplug.d/ieee80211/11_fix_wifi_mac
+@@ -74,6 +74,7 @@ case "$board" in
+ 	cudy,m3000-v1|\
+ 	cudy,re3000-v1|\
+ 	cudy,tr3000-v1|\
++	cudy,tr3000-v1-112m|\
+ 	cudy,tr3000-v1-ubootmod|\
+ 	cudy,wr3000s-v1|\
+ 	cudy,wr3000h-v1|\
+diff --git a/target/linux/mediatek/image/filogic.mk b/target/linux/mediatek/image/filogic.mk
+index 777ef36c06..cd5a49c7c2 100644
+--- a/target/linux/mediatek/image/filogic.mk
++++ b/target/linux/mediatek/image/filogic.mk
+@@ -784,6 +784,23 @@ define Device/cudy_tr3000-v1
+ endef
+ TARGET_DEVICES += cudy_tr3000-v1
+ 
++define Device/cudy_tr3000-v1-112m
++  DEVICE_VENDOR := Cudy
++  DEVICE_MODEL := TR3000
++  DEVICE_VARIANT := v1 (112M ubi)
++  DEVICE_DTS := mt7981b-cudy-tr3000-v1-112m
++  DEVICE_DTS_DIR := ../dts
++  SUPPORTED_DEVICES += R47
++  UBINIZE_OPTS := -E 5
++  BLOCKSIZE := 128k
++  PAGESIZE := 2048
++  IMAGE_SIZE := 65536k
++  KERNEL_IN_UBI := 1
++  IMAGE/sysupgrade.bin := sysupgrade-tar | append-metadata
++  DEVICE_PACKAGES := kmod-usb3 kmod-mt7915e kmod-mt7981-firmware mt7981-wo-firmware automount
++endef
++TARGET_DEVICES += cudy_tr3000-v1-112m
++
+ define Device/cudy_tr3000-v1-ubootmod
+   DEVICE_VENDOR := Cudy
+   DEVICE_MODEL := TR3000
+-- 
+2.48.1.windows.1
+
