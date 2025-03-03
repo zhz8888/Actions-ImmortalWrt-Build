@@ -1,23 +1,7 @@
-name: Build immortalwrt modify from source
+name: Build immortalwrt modify cudy_tr3000-v1-112m from source
 
 on:
   workflow_dispatch:
-    inputs:
-      REPO_BRANCH:
-        type: choice
-        description: "Select compile branch"
-        required: true
-        options:
-          - openwrt-24.10
-          - master
-        default: master
-      PLATFORM:
-        type: choice
-        description: "Select compile platform"
-        required: true
-        options:
-          - mediatek-filogic
-        default: mediatek-filogic
 
 #  schedule:
 #    - cron: 0 8 */5 * *
@@ -58,26 +42,17 @@ jobs:
         BUILD_TIME_2="$(TZ=Asia/Shanghai date -d "$CREATE_TIME" +"%Y%m%d-%H%M%S")"
         echo "BUILD_TIME_2=$BUILD_TIME_2" >> $GITHUB_ENV
 
-        git config --global user.email "67500896+zhz8888@users.noreply.github.com"
-        git config --global user.name "zhz8888"
-
     - name: Clone source code
       working-directory: /mnt/workdir
       run: |
         df -hT $PWD
-        git clone https://github.com/immortalwrt/immortalwrt.git -b ${{ inputs.REPO_BRANCH }} --depth=1 immortalwrt
+        git clone https://github.com/zhz8888/immortalwrt.git -b master --depth=1 immortalwrt
         ln -sf /mnt/workdir/immortalwrt $GITHUB_WORKSPACE/immortalwrt
 
     - name: Load custom configuration
       run: |
         cd immortalwrt
-        if [ "${{ inputs.REPO_BRANCH }}" == "openwrt-24.10" ]; then
-          cp -f $GITHUB_WORKSPACE/config/mediatek-filogic-24.10-SNAPSHOT-config.buildinfo .config
-        elif [ "${{ inputs.REPO_BRANCH }}" == "master" ]; then
-          cp -f $GITHUB_WORKSPACE/config/mediatek-filogic-SNAPSHOT-config.buildinfo .config
-        fi
-
-        git am $GITHUB_WORKSPACE/patch/*.patch || true
+        cp -r $GITHUB_WORKSPACE/config/mediatek-filogic-SNAPSHOT-cudy_tr3000-v1-112m.config .config
 
     - name: Update and install feeds
       run: |
@@ -107,7 +82,7 @@ jobs:
     - name: Upload bin directory
       uses: actions/upload-artifact@main
       with:
-        name: immortalwrt_bin_${{ inputs.PLATFORM }}_${{ env.BUILD_TIME_2 }}
+        name: immortalwrt_bin_mediatek-filogic_${{ env.BUILD_TIME_2 }}
         path: immortalwrt/bin
 
     - name: Organize files
@@ -120,26 +95,20 @@ jobs:
     - name: Upload firmware directory
       uses: actions/upload-artifact@main
       with:
-        name: immortalwrt_firmware_${{ inputs.PLATFORM }}_${{ env.BUILD_TIME_2 }}
+        name: immortalwrt_firmware_mediatek-filogic_${{ env.BUILD_TIME_2 }}
         path: ${{ env.FIRMWARE }}
 
     - name: Generate release informations
       run: |
-        if [ "${{ inputs.REPO_BRANCH }}" == "openwrt-24.10" ]; then
-          BUILD_VERSION="24.10.0-SNAPSHOTS"
-        elif [ "${{ inputs.REPO_BRANCH }}" == "master" ]; then
-          BUILD_VERSION="SNAPSHOTS"
-        fi
-
-        RELEASE_TAG="Modify-ImmortalWrt-$BUILD_VERSION-${{ inputs.PLATFORM }}-${{ env.BUILD_TIME_2 }}"
+        RELEASE_TAG="Modify-ImmortalWrt-SNAPSHOTS-mediatek-filogic-${{ env.BUILD_TIME_2 }}"
         echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
 
         cat <<EOF | sed -E 's/^  //' > Release.md
-          CI Modify ImmortalWrt $BUILD_VERSION ${{ inputs.PLATFORM }} ${{ env.BUILD_TIME_1 }}
+          CI Modify ImmortalWrt SNAPSHOTS mediatek-filogic ${{ env.BUILD_TIME_1 }}
 
           Build time: \`${{ env.BUILD_TIME_1 }}\`
-          Build version: Modify ImmortalWrt $BUILD_VERSION
-          Build platform: \`${{ inputs.PLATFORM }}\`
+          Build version: Modify ImmortalWrt SNAPSHOTS
+          Build platform: \`mediatek-filogic\`
           Login: \`192.168.1.1\`
           Username: \`root\`
           Password: \`none\`
